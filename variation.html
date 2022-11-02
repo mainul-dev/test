@@ -1,0 +1,207 @@
+<style>
+	body.cv-4-2 .cv-price__added {
+		white-space: nowrap;
+	}
+</style>
+<script>
+	(function () {
+		'use strict';
+
+		var type = 'variation',
+			number = '4-2',
+			tag = 'cv-' + number,
+			id = 'CONV-VDFI-' + number + '-' + type,
+			hjLabel = 'VDFI' + number + '_' + (type === 'control' ? 'original' : 'alternative'),
+			expName = 'VDFI 4.2 - Smartphone Contract Details [Content Visibility] [eCommerce]',
+			debug = document.cookie.indexOf('cfQA') > -1,
+			window = typeof unsafeWindow !== 'undefined' ? unsafeWindow : w,
+			targetElemSel = '.deviceShowcase'; // TO DO: main element you need to wait for
+
+		window[tag] = {
+			log: function (msg) {
+				if (debug) console.log(id, '-->', msg);
+			},
+
+			waitForElement: function (cssSelector, callback) {
+				var stop,
+					elementCached,
+					timeout,
+					check = function () {
+						try {
+							elementCached = document.querySelector(cssSelector);
+
+							if (stop) return;
+
+							if (elementCached) {
+								callback(elementCached);
+								clearTimeout(timeout);
+
+								window[tag].log(cssSelector + ' found');
+							} else {
+								window.requestAnimationFrame(check);
+							}
+						} catch (err) {
+							window[tag].log(err.message);
+						}
+					};
+
+				window.requestAnimationFrame(check);
+
+				timeout = setTimeout(function () {
+					stop = true;
+					window[tag].log(cssSelector + ' not found');
+				}, 5000);
+			},
+
+			init: function () {
+				this.waitForElement('body:not(.' + id + ') ' + targetElemSel, function (targetElem) {
+					try {
+						document.body.classList.add(id);
+
+						if (debug && document.title.indexOf('CONV QA') < 0) {
+							document.title = '[CONV QA] ' + document.title;
+						}
+
+						window[tag].initHotjar();
+
+						initTestCode(targetElem);
+
+						window[tag].log('running');
+					} catch (err) {
+						window[tag].log(err.message);
+					}
+				});
+			},
+
+			trackEvent: function (label) {
+				var trackingInitialised = typeof s === 'object' && typeof s.tl === 'function';
+
+				if (trackingInitialised) {
+					label = expName ? expName + ' : ' + label : label;
+
+					s.linkTrackVars = 'eVar119';
+					s.eVar119 = label;
+					s.tl(this, 'o', label);
+
+					window[tag].log('metric event sent: ' + label);
+				} else {
+					window[tag].log('error sending metric event: ' + label + ' - window.s object not initialised');
+				}
+			},
+
+			initHotjar: function () {
+				try {
+					if (hjLabel) {
+						var maxCalls = 10,
+							waitForHj = setInterval(function () {
+								if (typeof window.hj === 'function') {
+									clearInterval(waitForHj);
+
+									hj('trigger', hjLabel);
+									hj('tagRecording', [hjLabel]);
+
+									window[tag].log('Hotjar initialised: ' + hjLabel);
+								}
+
+								if (--maxCalls < 0) {
+									clearInterval(waitForHj);
+
+									window[tag].log('Hotjar failed to load');
+								}
+							}, 500);
+					}
+				} catch (err) {
+					window[tag].log(err);
+				}
+			},
+		};
+
+		window[tag].init();
+
+		function initTestCode(elmCached) {
+			const data = {
+				'iPhone 14 Pro Max': {
+					contractLength: '30 mesi',
+					cost: '150 €',
+				},
+				'Galaxy Z Fold 4 5G': {
+					contractLength: '30 mesi',
+					cost: '240 €',
+				},
+				'iPhone 14 Pro': {
+					contractLength: '30 mesi',
+					cost: '240 €',
+				},
+				'iPhone 14': {
+					contractLength: '30 mesi',
+					cost: '150 €',
+				},
+				'Galaxy Z Flip4 5G': {
+					contractLength: '30 mesi',
+					cost: '150 €',
+				},
+				'iPhone 13': {
+					contractLength: '30 mesi',
+					cost: '150 €',
+				},
+				'Find X5': {
+					contractLength: '30 mesi',
+					cost: '120 €',
+				},
+				'iPhone SE 2022': {
+					contractLength: '30 mesi',
+					cost: '120 €',
+				},
+				'Galaxy A32 5G': {
+					contractLength: '30 mesi',
+					cost: '30 €',
+				},
+				'Galaxy S22 5G': {
+					contractLength: '30 mesi',
+					cost: '120 €',
+				},
+				'Galaxy S22+ 5G': {
+					contractLength: '30 mesi',
+					cost: '150 €',
+				},
+			};
+
+			window[tag].waitForElement('.deviceShowcase', (parent) => {
+				function addContractDetails() {
+					window[tag].waitForElement('div[class^="deviceCard_box__"]', () => {
+						const products = document.querySelectorAll('div[class^="deviceCard_box__"]');
+						products.forEach((product) => {
+							const productTitle = product.querySelector('h4[class^="deviceCard_title__"] > div:nth-child(2)');
+							if (data[productTitle.textContent]) {
+								const prior = product.querySelector('div[class^="deviceCard_placeholder__"]');
+								const priceTextEl = prior.querySelector(':scope > div > div');
+								const priceText = priceTextEl.innerHTML.split('al mese');
+
+								if (!priceTextEl.classList.contains('cv-price__added')) {
+									priceTextEl.innerHTML = `${priceText.join('')} x ${data[productTitle.textContent].contractLength}`;
+									priceTextEl.classList.add('cv-price__added');
+								}
+								if (!product.querySelector('.cv-contract__details')) {
+									const markup = `<p class="cv-contract__details">Costo iniziale ${
+										data[productTitle.textContent].cost
+									}</p>`;
+									prior.insertAdjacentHTML('afterend', markup);
+								}
+							}
+						});
+					});
+				}
+				addContractDetails();
+				const oldProducts = document.querySelectorAll('div[class^="deviceShowcaseComponent_card__"]');
+				new MutationObserver(() => {
+					const newProducts = document.querySelectorAll('div[class^="deviceShowcaseComponent_card__"]');
+					if (newProducts.length !== oldProducts.length) {
+						addContractDetails();
+					}
+				}).observe(parent, { childList: true, subtree: true });
+			});
+
+			window[tag].log('changes completed');
+		}
+	})(window);
+</script>
